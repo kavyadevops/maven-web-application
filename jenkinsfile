@@ -1,0 +1,29 @@
+node{
+def mavenHome = tool name: "Maven-3.8.4"
+properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), [$class: 'JobLocalConfiguration', changeReasonComment: ''], pipelineTriggers([pollSCM('* * * * *')])])
+stage("code checkout")
+{
+git branch: 'development', credentialsId: '2f08d3b4-5a39-4a33-aa6c-bf4b61444c8f', url: 'https://github.com/kavyadevops/maven-web-application.git'
+}
+
+stage("Buildpackage")
+{
+sh "${mavenHome}/bin/mvn clean package"
+}
+stage("Execute sonarqube report")
+{
+sh "${mavenHome}/bin/mvn sonar:sonar"
+
+}
+
+stage("upload artifacts into artifact repository")
+{
+sh "${mavenHome}/bin/mvn deploy"
+}
+stage("Deploy to Tomcat")
+{
+sshagent(['afddd256-6a34-4791-8e60-8bf84ef3965c']) {
+sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@3.109.3.243:/opt/apache-tomcat-9.0.64/webapps"
+}
+}
+}
